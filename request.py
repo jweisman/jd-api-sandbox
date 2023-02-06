@@ -28,10 +28,28 @@ MYJOHNDEERE_V3_JSON_HEADERS = { 'Accept': 'application/vnd.deere.axiom.v3+json',
 API_CATALOG_URI = 'https://sandboxapi.deere.com/platform/'
 #API_CATALOG_URI = 'https://partnerapi.deere.com/platform/'
 
-OPERATION_TYPES = ['seeding', 'tillage', 'harvest']
+OPERATIONS = {
+  'seeding': {
+    'event_type': lambda o: 'COVER' if datetime.fromisoformat(o['startDate']).month > 7 else 'PLANTING',
+    'event_detail': lambda o: o['cropName']
+  },
+  'tillage': {
+    'event_type': lambda o: 'TILLAGE',
+    'event_detail': lambda o: 'CONVENTIONAL' if get_tillage(o)['averageSpeed']['value'] < 7 else 'REDUCED' 
+  },
+  'harvest': {
+    'event_type': lambda o: 'HARVEST',
+    'event_detail': lambda o: ''
+  }
+}
 
 field_events = []
 
+def get_tillage(o):
+  tillage_link = find_link(o['links'], 'tillageSpeedResult')
+  tillage_response = get(tillage_link)
+  return tillage_response
+  
 def process_organizations(link):
   organizations_response = get(link)
   #save_result('organizations', organizations_response)
@@ -65,17 +83,14 @@ def process_operations(link, field_id):
   # Get Field Operations
   field_operations_response = get(link)
   # Get operations
-  for operation in filter(lambda op: op['fieldOperationType'] in OPERATION_TYPES, field_operations_response['values']):
-    match operation['fieldOperationType']:
-      case 'seeding':
-        field_events.append({ 'field': field_id, 'date': datetime.fromisoformat(operation['startDate']).strftime("%d-%b-%Y"), 'event_type': 'PLANTING', 'event_detail': operation['cropName']})
-      case 'harvest':
-        field_events.append({ 'field': field_id, 'date': datetime.fromisoformat(operation['startDate']).strftime("%d-%b-%Y"), 'event_type': 'HARVEST', 'event_detail': ''})
-      case 'tillage':
-        tillage_link = find_link(operation['links'], 'tillageSpeedResult')
-        tillage_response = get(tillage_link)
-        field_events.append({ 'field': field_id, 'date': datetime.fromisoformat(operation['startDate']).strftime("%d-%b-%Y"), 'event_type': 'TILLAGE', 'event_detail': str(tillage_response['averageSpeed']['value'])})
-
+  for operation in filter(lambda op: op['fieldOperationType'] in OPERATIONS.keys(), field_operations_response['values']):
+    operation_def = OPERATIONS[operation['fieldOperationType']]
+    field_events.append({ 
+      'field': field_id,
+      'date': datetime.fromisoformat(operation['startDate']).strftime("%d-%b-%Y"),
+      'event_type': operation_def['event_type'](operation),
+      'event_detail': operation_def['event_detail'](operation)
+    })
   next_link = find_link(field_operations_response['links'], 'nextPage')
   if next_link: process_operations(next_link, field_id)
 
