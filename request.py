@@ -35,7 +35,7 @@ OPERATIONS = {
   },
   'tillage': {
     'event_type': lambda o: 'TILLAGE',
-    'event_detail': lambda o: 'CONVENTIONAL' if get_tillage(o)['averageSpeed']['value'] < 7 else 'REDUCED' 
+    'event_detail': lambda o: get_tillage_speed(o)
   },
   'harvest': {
     'event_type': lambda o: 'HARVEST',
@@ -45,23 +45,25 @@ OPERATIONS = {
 
 field_events = []
 
-def get_tillage(o):
+def get_tillage_speed(o):
   tillage_link = find_link(o['links'], 'tillageSpeedResult')
-  tillage_response = get(tillage_link)
-  return tillage_response
+  if tillage_link:
+    tillage_response = get(tillage_link) 
+    return 'CONVENTIONAL' if tillage_response['averageSpeed']['value'] < 7 else 'REDUCED' 
+  else: return 'UNKNOWN'
   
 def process_organizations(link):
   organizations_response = get(link)
   #save_result('organizations', organizations_response)
   for organization in organizations_response['values']:
-    print('Processing organization: ' + organization['name'])
+    print(f"Processing organization: ${organization['name']}")
     fields_link = find_link(organization['links'], 'fields')
-    if fields_link: process_fields(fields_link)
+    process_fields(fields_link, organization['name']) if fields_link else print(f"Skipping organization ${organization['name']}")
   
-  next_link = find_link(organization['links'], 'nextPage')
+  next_link = find_link(organizations_response['links'], 'nextPage')
   if next_link: process_organizations(next_link)
 
-def process_fields(link):
+def process_fields(link, org_name):
   # Get fields
   fields_response = get(link)
 
@@ -70,29 +72,30 @@ def process_fields(link):
     print('Field: ' + field['name'])
     boundaries_response = get(find_link(field['links'], 'simplifiedBoundaries'))
     if boundaries_response['total'] >= 1:
-      #geojson = jd_to_geojson(boundaries_response['values'][0]['multipolygons'])
       geojson = get_boundary(boundaries_response['values'])
       save_result(f"fields/{field['id']}-boundaries", geojson)
       operations_link = find_link(field['links'], 'fieldOperation')
-      if operations_link: process_operations(operations_link, field['id'])
+      if operations_link: process_operations(operations_link, field['id'], field['name'], org_name)
 
   next_link = find_link(fields_response['links'], 'nextPage')
-  if next_link: process_fields(next_link)
+  if next_link: process_fields(next_link, org_name)
 
-def process_operations(link, field_id):
+def process_operations(link, field_id, field_name, org_name):
   # Get Field Operations
   field_operations_response = get(link)
   # Get operations
   for operation in filter(lambda op: op['fieldOperationType'] in OPERATIONS.keys(), field_operations_response['values']):
     operation_def = OPERATIONS[operation['fieldOperationType']]
     field_events.append({ 
-      'field': field_id,
+      'field_id': field_id,
+      'field_name': field_name,
+      'org_name': org_name,
       'date': datetime.fromisoformat(operation['startDate']).strftime("%d-%b-%Y"),
       'event_type': operation_def['event_type'](operation),
       'event_detail': operation_def['event_detail'](operation)
     })
   next_link = find_link(field_operations_response['links'], 'nextPage')
-  if next_link: process_operations(next_link, field_id)
+  if next_link: process_operations(next_link, field_id, field_name, org_name)
 
 # Get API Catalog
 api_catalog_response = get(API_CATALOG_URI)

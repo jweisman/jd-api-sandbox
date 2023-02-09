@@ -157,7 +157,7 @@ cython_debug/
 !/output/**/.gitkeep
 
 # Security
-token.json
+token*.json
 secret.py
 
 # Mac
