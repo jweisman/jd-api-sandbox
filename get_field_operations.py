@@ -1,32 +1,8 @@
-from secret import CLIENT_ID, CLIENT_SECRET
-from auth import WELL_KNOWN_TOKEN_URL, get_token, token_saver
-from requests_oauthlib import OAuth2Session
+import pandas as pd
+from request_utils import get, find_link, save_result, loop_tokens
 from tabulate import tabulate
 from utils import get_boundary
 from datetime import datetime
-import json
-
-def get(protected_url):
-  token = get_token()
-  print('Getting ' + protected_url)
-  client = OAuth2Session(CLIENT_ID, token=token, auto_refresh_url=WELL_KNOWN_TOKEN_URL,
-    auto_refresh_kwargs={'client_id': CLIENT_ID, 'client_secret': CLIENT_SECRET}, token_updater=token_saver)
-  response = client.get(protected_url, headers=MYJOHNDEERE_V3_JSON_HEADERS)
-  return response.json() if response.status_code == 200 else response
-
-def find_link(iterable, rel):
-  link = next((link for link in iterable if link['rel'] == rel), None)
-  return link['uri'] if link else None
-
-def save_result(name, contents):
-  with open('output/' + name + '.json', 'w') as outfile:
-    json.dump(contents, outfile, indent=2)
-
-MYJOHNDEERE_V3_JSON_HEADERS = { 'Accept': 'application/vnd.deere.axiom.v3+json',
-                                'Content-Type': 'application/vnd.deere.axiom.v3+json'}
-
-API_CATALOG_URI = 'https://sandboxapi.deere.com/platform/'
-#API_CATALOG_URI = 'https://partnerapi.deere.com/platform/'
 
 OPERATIONS = {
   'seeding': {
@@ -43,8 +19,6 @@ OPERATIONS = {
   }
 }
 
-field_events = []
-
 def get_tillage_speed(o):
   tillage_link = find_link(o['links'], 'tillageSpeedResult')
   if tillage_link:
@@ -52,9 +26,8 @@ def get_tillage_speed(o):
     return 'CONVENTIONAL' if tillage_response['averageSpeed']['value'] < 7 else 'REDUCED' 
   else: return 'UNKNOWN'
   
-def process_organizations(link):
+def process_organizations(link, user_name):
   organizations_response = get(link)
-  #save_result('organizations', organizations_response)
   for organization in organizations_response['values']:
     print(f"Processing organization: ${organization['name']}")
     fields_link = find_link(organization['links'], 'fields')
@@ -97,9 +70,12 @@ def process_operations(link, field_id, field_name, org_name):
   next_link = find_link(field_operations_response['links'], 'nextPage')
   if next_link: process_operations(next_link, field_id, field_name, org_name)
 
-# Get API Catalog
-api_catalog_response = get(API_CATALOG_URI)
-organizations_link = find_link(api_catalog_response['links'], 'organizations')
-process_organizations(organizations_link)
-with open('output/results.txt', 'w') as f:
-  print(tabulate(field_events, headers="keys"), file=f)
+def main():
+  loop_tokens(process_organizations)
+  with open('output/results.txt', 'w') as f:
+    print(tabulate(field_events, headers="keys"), file=f)
+
+field_events = []
+
+if __name__ == "__main__":
+  main()

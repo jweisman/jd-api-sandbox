@@ -15,7 +15,6 @@ __location__ = os.path.realpath(
   os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
 def token_saver(token): 
-  print('in token saver')
   with open(os.path.join(__location__, TOKEN_FILE_NAME), 'w') as outfile:
     json.dump(token, outfile, indent=2)
 
