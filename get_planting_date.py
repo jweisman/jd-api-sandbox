@@ -1,5 +1,6 @@
 import pandas as pd
 from request_utils import get, loop_tokens
+from datetime import datetime
 
 def get_planting(link, field_id):
   link = f"{link}?cropSeason=2024&fieldOperationType=SEEDING"
@@ -12,8 +13,8 @@ def process_fields(organizations_link, username):
     planting_response = get_planting(operations_link, row['jd_field_id'])
     if planting_response['total'] > 0:
       operation = planting_response['values'][0]
-      row['planting_date'] = operation['startDate']
-      row['crop'] = operation['cropName']
+      fields.at[index, 'planting_date'] = datetime.fromisoformat(operation['startDate']).strftime("%Y-%m-%d")
+      fields.at[index, 'crop'] = operation['cropName']
 
 def main():
   fields['planting_date'] = ''

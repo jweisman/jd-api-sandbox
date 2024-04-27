@@ -11,7 +11,11 @@ def get(protected_url):
   client = OAuth2Session(CLIENT_ID, token=token, auto_refresh_url=WELL_KNOWN_TOKEN_URL,
     auto_refresh_kwargs={'client_id': CLIENT_ID, 'client_secret': CLIENT_SECRET}, token_updater=token_saver)
   response = client.get(protected_url, headers=MYJOHNDEERE_V3_JSON_HEADERS)
-  return response.json() if response.status_code == 200 else response
+  if response.status_code != 200:
+    print(f"Error calling JD API ({response.status_code}: {response.text})")
+    return { 'status_code': response.status_code, 'text': response.text }
+  else:
+    return response.json()
 
 def find_link(iterable, rel):
   link = next((link for link in iterable if link['rel'] == rel), None)
