@@ -25,8 +25,11 @@ def save_result(name, contents):
   with open('output/' + name + '.json', 'w') as outfile:
     json.dump(contents, outfile, indent=2)
 
-MYJOHNDEERE_V3_JSON_HEADERS = { 'Accept': 'application/vnd.deere.axiom.v3+json',
-                                'Content-Type': 'application/vnd.deere.axiom.v3+json'}
+MYJOHNDEERE_V3_JSON_HEADERS = { 
+                                'Accept': 'application/vnd.deere.axiom.v3+json',
+                                'Content-Type': 'application/vnd.deere.axiom.v3+json',
+                                'Accept-UOM-System': 'ENGLISH'
+                              }
 
 #API_CATALOG_URI = 'https://sandboxapi.deere.com/platform/'
 API_CATALOG_URI = 'https://partnerapi.deere.com/platform/'

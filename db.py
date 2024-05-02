@@ -34,6 +34,14 @@ def find_field_by_intersect(boundaries):
   query = text(f"""WITH geom_json AS 
                (SELECT ST_SetSRID(ST_MakeValid(ST_GeomFromText(:wkt)), 4326) as geojson_boundary) 
                 select f.id, f.name as field_name, c.name as client_name, ol.name as organization_name,
+                exists(
+                  select ss.id from plan_fields pf, selling_season ss, plans p
+                  where f.id = pf.field_id  
+                  and pf.plan_id = p.id
+                  and p.selling_season_id = ss.id 
+                  and p.product_type = 1
+                  and now() between ss.start_date and ss.end_date 
+                ) as current_plan,
                 CASE
                 WHEN ST_Area(the_geom) = 0 THEN null
                 ELSE ST_Area(ST_Intersection(the_geom, geojson_boundary)) / ST_Area(the_geom) * 100
@@ -44,7 +52,8 @@ def find_field_by_intersect(boundaries):
                 and f.is_deleted = false
                 and fm.client_id = c.id
                 and c.organization_level_id = ol.id
-              and c.organization_level_id not in ({org_ids})""")
+                and c.organization_level_id not in ({org_ids})
+              """)
   with ENGINE.connect() as conn:
     df = pd.read_sql_query(
       sql = query,

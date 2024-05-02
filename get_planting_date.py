@@ -1,9 +1,9 @@
 import pandas as pd
-from request_utils import get, loop_tokens
+from request_utils import get, loop_tokens, find_link
 from datetime import datetime
 
 def get_planting(link, field_id):
-  link = f"{link}?cropSeason=2024&fieldOperationType=SEEDING"
+  link = f"{link}?cropSeason={datetime.now().year}&fieldOperationType=SEEDING"
   field_operations_response = get(link)
   return field_operations_response
 
@@ -16,9 +16,16 @@ def process_fields(organizations_link, username):
       fields.at[index, 'planting_date'] = datetime.fromisoformat(operation['startDate']).strftime("%Y-%m-%d")
       fields.at[index, 'crop'] = operation['cropName']
 
+      measurements_link = find_link(operation['links'], 'seedingRateTarget')
+      measurement_response = get(measurements_link)
+      if measurement_response:
+        target = measurement_response['averageMaterial']['value']
+        fields.at[index, 'target_pop'] = target
+
 def main():
   fields['planting_date'] = ''
   fields['crop'] = ''
+  fields['target_pop'] = ''
 
   loop_tokens(process_fields)
 

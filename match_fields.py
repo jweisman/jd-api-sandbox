@@ -30,6 +30,7 @@ def process_fields(link, org_id, org_name, user_name):
           'taranis_client_name': taranis_field['client_name'],
           'taranis_org_name': taranis_field['organization_name'],
           'percent': taranis_field['percent_of_intersection'],
+          'current_plan': taranis_field['current_plan'],
           'user_name': user_name
         })    
 
