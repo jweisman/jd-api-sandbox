@@ -42,6 +42,10 @@ def find_field_by_intersect(boundaries):
                   and p.product_type = 1
                   and now() between ss.start_date and ss.end_date 
                 ) as current_plan,
+                (
+                  select planting_date from fields_cycles fc 
+                  where now() between fc.start_cycle_date and fc.end_cycle_date and f.id = fc.field_id
+                ) as taranis_planting_date,
                 CASE
                 WHEN ST_Area(the_geom) = 0 THEN null
                 ELSE ST_Area(ST_Intersection(the_geom, geojson_boundary)) / ST_Area(the_geom) * 100

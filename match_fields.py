@@ -29,6 +29,7 @@ def process_fields(link, org_id, org_name, user_name):
           'taranis_field_name': taranis_field['field_name'],
           'taranis_client_name': taranis_field['client_name'],
           'taranis_org_name': taranis_field['organization_name'],
+          'taranis_planting_date': taranis_field['taranis_planting_date'],
           'percent': taranis_field['percent_of_intersection'],
           'current_plan': taranis_field['current_plan'],
           'user_name': user_name
@@ -44,7 +45,9 @@ def process_organizations(link, user_name):
     fields_link = find_link(organization['links'], 'fields')
     if fields_link:
       process_fields(f"{fields_link}?embed=simplifiedBoundaries&itemLimit=25", organization['id'], organization['name'], user_name) 
-    else: print(f"Skipping organization ${organization['name']}")
+    else: 
+      connections_link = find_link(organization['links'], 'connections')
+      print(f"No access to fields for organization ${organization['name']} (${connections_link})")
   
   next_link = find_link(organizations_response['links'], 'nextPage')
   if next_link: process_organizations(next_link, user_name)
