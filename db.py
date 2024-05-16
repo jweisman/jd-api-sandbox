@@ -51,11 +51,13 @@ def find_field_by_intersect(boundaries):
                 ELSE ST_Area(ST_Intersection(the_geom, geojson_boundary)) / ST_Area(the_geom) * 100
                 END AS percent_of_intersection 
                 FROM fields f, geom_json, farm fm, client c, organization_level ol 
-                WHERE ST_Intersects(the_geom, geojson_boundary)=true and f.is_deleted =false
+                WHERE ST_Intersects(the_geom, geojson_boundary) = true 
                 and f.farm_id = fm.id
                 and f.is_deleted = false
                 and fm.client_id = c.id
+                and c.is_deleted is false
                 and c.organization_level_id = ol.id
+                and ol.is_deleted is false
                 and c.organization_level_id not in ({org_ids})
               """)
   with ENGINE.connect() as conn:
