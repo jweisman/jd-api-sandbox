@@ -37,6 +37,7 @@ def find_field_by_intersect(boundaries):
                 exists(
                   select ss.id from plan_fields pf, selling_season ss, plans p
                   where f.id = pf.field_id  
+                  and pf.is_deleted is false
                   and pf.plan_id = p.id
                   and p.selling_season_id = ss.id 
                   and p.product_type = 1
