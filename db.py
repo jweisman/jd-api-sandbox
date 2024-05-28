@@ -29,35 +29,34 @@ def get_tokens():
   
 def find_field_by_intersect(boundaries):
   # Query the database to check if the geometry intersects with any field
-  org_ids =  ",".join(str(x) for x in INTERNAL_ORG_IDS)
+  org_ids = ','.join(map(str, INTERNAL_ORG_IDS)) 
 
   query = text(f"""WITH geom_json AS 
                (SELECT ST_SetSRID(ST_MakeValid(ST_GeomFromText(:wkt)), 4326) as geojson_boundary) 
-                select f.id, f.name as field_name, c.name as client_name, ol.name as organization_name,
-                exists(
-                  select ss.id from plan_fields pf, selling_season ss, plans p
-                  where f.id = pf.field_id  
-                  and pf.is_deleted is false
-                  and pf.plan_id = p.id
-                  and p.selling_season_id = ss.id 
-                  and p.product_type = 1
-                  and now() between ss.start_date and ss.end_date 
-                ) as current_plan,
-                (
-                  select planting_date from fields_cycles fc 
-                  where now() between fc.start_cycle_date and fc.end_cycle_date and f.id = fc.field_id
-                ) as taranis_planting_date,
+                select f.id, f.name as field_name, c.name as client_name, ol.name as organization_name, 
+                case when current_plan.season_id is not null then true else false end as current_plan, 
+                current_plan.planting_date taranis_planting_date,
                 CASE
                 WHEN ST_Area(the_geom) = 0 THEN null
                 ELSE ST_Area(ST_Intersection(the_geom, geojson_boundary)) / ST_Area(the_geom) * 100
                 END AS percent_of_intersection 
-                FROM fields f, geom_json, farm fm, client c, organization_level ol 
-                WHERE ST_Intersects(the_geom, geojson_boundary) = true 
-                and f.farm_id = fm.id
-                and f.is_deleted = false
-                and fm.client_id = c.id
+                FROM fields f
+                inner join geom_json on ST_Intersects(the_geom, geojson_boundary)
+                inner join farm fm on f.farm_id = fm.id
+                inner join client c on fm.client_id = c.id
+                inner join organization_level ol on c.organization_level_id = ol.id
+                left  join (
+                  select ss.id season_id, hf.planting_date, pf.field_id  
+                  from plan_fields pf
+                  inner join plans p on pf.plan_id = p.id
+                  inner join selling_season ss on p.selling_season_id = ss.id
+                  inner join home_fieldcrop hf on pf.cycle_id = hf.id
+                  where pf.is_deleted is false
+                  and p.product_type = 1
+                  and now() between ss.start_date and ss.end_date 
+                ) as current_plan on current_plan.field_id = f.id
+                WHERE f.is_deleted = false
                 and c.is_deleted is false
-                and c.organization_level_id = ol.id
                 and ol.is_deleted is false
                 and c.organization_level_id not in ({org_ids})
               """)

@@ -7,7 +7,7 @@ fields = []
 
 def find_taranis_field(boundaries):
     df = find_field_by_intersect(boundaries)
-    return df[df.percent_of_intersection>79].sort_values('percent_of_intersection', ascending=False)
+    return df[df.percent_of_intersection>=80].sort_values('percent_of_intersection', ascending=False)
 
 def process_fields(link, org_id, org_name, user_name):
   # Get fields
